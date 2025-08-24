@@ -1,109 +1,50 @@
+// server.js
 import express from "express";
 import cors from "cors";
-import { v2 as cloudinary } from "cloudinary";
+import dotenv from "dotenv";
+import cloudinary from "cloudinary";
 
-// 🔹 Setup
+dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔹 Cloudinary Config (use your credentials or env vars)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+// Configure Cloudinary
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// Helper: List resources under a prefix
-async function listResources(prefix) {
-  const res = await cloudinary.search
-    .expression(`folder:${prefix}`)
-    .max_results(500)
-    .execute();
+// GET /getImages?zone=Zone1&supervisor=Nandhu&category=Attendence&ward=3&date=2025-08-20
+app.get("/getImages", async (req, res) => {
+  const { zone, supervisor, category, ward, date } = req.query;
 
-  return res.resources.map(r => r.public_id);
-}
-
-// 🔹 API Routes
-
-// 1. Get all Zones
-app.get("/api/zones", async (req, res) => {
-  try {
-    const zones = await listResources("Zones");
-    // Extract Zone names (Zones/Zone1/... → Zone1)
-    const uniqueZones = [...new Set(zones.map(p => p.split("/")[1]))];
-    res.json(uniqueZones);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (!zone || !supervisor || !category || !ward || !date) {
+    return res.status(400).json({ error: "Missing query parameters" });
   }
-});
 
-// 2. Get Supervisors in a Zone
-app.get("/api/zones/:zone", async (req, res) => {
   try {
-    const { zone } = req.params;
-    const paths = await listResources(`Zones/${zone}`);
-    const supervisors = [...new Set(paths.map(p => p.split("/")[2]))];
-    res.json(supervisors);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const folderPath = `Zones/${zone}/${supervisor}/${category}/${ward}/${date}`;
 
-// 3. Get Categories
-app.get("/api/zones/:zone/:supervisor", async (req, res) => {
-  try {
-    const { zone, supervisor } = req.params;
-    const paths = await listResources(`Zones/${zone}/${supervisor}`);
-    const categories = [...new Set(paths.map(p => p.split("/")[3]))];
-    res.json(categories);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const result = await cloudinary.v2.search
+      .expression(`folder:${folderPath}`)
+      .sort_by("public_id", "asc")
+      .max_results(100)
+      .execute();
 
-// 4. Get Wards
-app.get("/api/zones/:zone/:supervisor/:category", async (req, res) => {
-  try {
-    const { zone, supervisor, category } = req.params;
-    const paths = await listResources(`Zones/${zone}/${supervisor}/${category}`);
-    const wards = [...new Set(paths.map(p => p.split("/")[4]))];
-    res.json(wards);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 5. Get Dates
-app.get("/api/zones/:zone/:supervisor/:category/:ward", async (req, res) => {
-  try {
-    const { zone, supervisor, category, ward } = req.params;
-    const paths = await listResources(`Zones/${zone}/${supervisor}/${category}/${ward}`);
-    const dates = [...new Set(paths.map(p => p.split("/")[5]))];
-    res.json(dates);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 6. Get Images for Date
-app.get("/api/zones/:zone/:supervisor/:category/:ward/:date", async (req, res) => {
-  try {
-    const { zone, supervisor, category, ward, date } = req.params;
-    const prefix = `Zones/${zone}/${supervisor}/${category}/${ward}/${date}`;
-    const resData = await cloudinary.search.expression(`folder:${prefix}`).execute();
-
-    const images = resData.resources.map(img => ({
+    const images = result.resources.map(img => ({
       url: img.secure_url,
-      filename: img.public_id.split("/").pop()
+      name: img.public_id.split("/").pop(),
     }));
 
     res.json(images);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch images" });
   }
 });
 
 // Start server
-const PORT = 5000;
-app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
