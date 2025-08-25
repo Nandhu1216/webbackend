@@ -51,6 +51,8 @@ app.get("/getImages", async (req, res) => {
   }
 });
 
+console.log("Query params:", req.query);
+console.log("Searching Cloudinary folder:", folderPath);
 
 // Start server
 const PORT = process.env.PORT || 5000;
