@@ -29,12 +29,15 @@ app.get("/getImages", async (req, res) => {
 
   try {
     const folderPath = `Zones/${zone}/${supervisor}/${category}/${ward}/${date}`;
+    console.log("Searching folder:", folderPath);
 
-    const result = await cloudinary.v2.search
+    const result = await cloudinary.search
       .expression(`folder:${folderPath}`)
       .sort_by("public_id", "asc")
       .max_results(100)
       .execute();
+
+    console.log("Found images:", result.resources.length);
 
     const images = result.resources.map(img => ({
       url: img.secure_url,
@@ -43,10 +46,11 @@ app.get("/getImages", async (req, res) => {
 
     res.json(images);
   } catch (err) {
-    console.error(err);
+    console.error("Cloudinary fetch error:", err);
     res.status(500).json({ error: "Failed to fetch images" });
   }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
