@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import { v2 as cloudinary } from "cloudinary";
 
 dotenv.config();
 const app = express();
@@ -10,14 +10,11 @@ app.use(cors());
 app.use(express.json());
 
 // Configure Cloudinary
-import { v2 as cloudinary } from "cloudinary";
-
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.CLOUD_API_KEY,
   api_secret: process.env.CLOUD_API_SECRET,
 });
-
 
 // GET /getImages?zone=Zone1&supervisor=Nandhu&category=Attendence&ward=3&date=2025-08-20
 app.get("/getImages", async (req, res) => {
@@ -29,17 +26,19 @@ app.get("/getImages", async (req, res) => {
 
   try {
     const folderPath = `Zones/${zone}/${supervisor}/${category}/${ward}/${date}`;
-    console.log("Searching folder:", folderPath);
+    console.log("Searching Cloudinary folder:", folderPath);
 
+    // Fetch images
     const result = await cloudinary.search
-      .expression(`folder:${folderPath}`)
+      .expression(`resource_type:image AND folder:${folderPath}`)
       .sort_by("public_id", "asc")
       .max_results(100)
       .execute();
 
-    console.log("Found images:", result.resources.length);
+    console.log("Number of images found:", result.resources.length);
 
-    const images = result.resources.map(img => ({
+    // Map results
+    const images = (result.resources || []).map(img => ({
       url: img.secure_url,
       name: img.public_id.split("/").pop(),
     }));
@@ -50,8 +49,6 @@ app.get("/getImages", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch images" });
   }
 });
-
-
 
 // Start server
 const PORT = process.env.PORT || 5000;
