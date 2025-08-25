@@ -10,11 +10,14 @@ app.use(cors());
 app.use(express.json());
 
 // Configure Cloudinary
-cloudinary.v2.config({
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.CLOUD_API_KEY,
   api_secret: process.env.CLOUD_API_SECRET,
 });
+
 
 // GET /getImages?zone=Zone1&supervisor=Nandhu&category=Attendence&ward=3&date=2025-08-20
 app.get("/getImages", async (req, res) => {
